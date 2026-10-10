@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05090d">
+<title>FED//OSINT Fusion Dashboard</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#05090d;--p:#09121a;--p2:#0c1821;--ln:#193342;--tx:#dce9ef;--mu:#7996a5;--cy:#59ddff;--gr:#6cf2a0;--am:#ffc857;--rd:#ff626f;--bl:#82aaff}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--tx);font:13px system-ui,-apple-system,Segoe UI,sans-serif}
+body{overflow:hidden}.app{height:100dvh;display:grid;grid-template-rows:auto auto 1fr}
+header{height:52px;padding:0 12px;display:flex;align-items:center;gap:10px;background:#071019;border-bottom:1px solid var(--ln)}
+.logo{font-weight:900;letter-spacing:.14em}.logo i{font-style:normal;color:var(--cy)}.classification{font-size:9px;letter-spacing:.1em;border:1px solid #285064;padding:3px 6px;border-radius:4px;color:#a7dce8}
+.grow{flex:1}.live{display:flex;align-items:center;gap:6px;color:var(--mu)}.dot{width:8px;height:8px;border-radius:50%;background:var(--gr);box-shadow:0 0 10px var(--gr)}
+#clock{font-variant-numeric:tabular-nums;color:#a9c0cb}.bar{padding:7px 9px;display:flex;gap:6px;align-items:center;overflow:auto;background:#071019;border-bottom:1px solid var(--ln);scrollbar-width:none}
+button,input{background:#0b1822;border:1px solid #1d3c4e;border-radius:7px;color:var(--tx);padding:7px 9px}button{cursor:pointer;white-space:nowrap}button:hover{border-color:#39778f}
+#run{background:#0b3040;border-color:#32748c;color:#c7f6ff;font-weight:800}.chip.on{background:#102c38;border-color:#3a819b;color:#c8f6ff}.search{min-width:180px;outline:none}.tiny{font-size:10px;color:var(--mu);white-space:nowrap}
+main{min-height:0;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(330px,.65fr);gap:7px;padding:7px}
+.panel{background:var(--p);border:1px solid var(--ln);border-radius:10px;overflow:hidden}.mapbox{position:relative;min-height:0}#map{height:100%;width:100%;background:#061017}
+.stats{position:absolute;z-index:600;top:9px;left:50%;transform:translateX(-50%);display:flex;gap:5px;pointer-events:none}.stat{background:#061019e8;border:1px solid #244555;border-radius:7px;padding:5px 8px;min-width:74px;box-shadow:0 8px 20px #0008}.stat b{display:block;font-size:14px}.stat span{font-size:8px;letter-spacing:.08em;color:var(--mu)}
+.right{min-height:0;display:grid;grid-template-rows:auto auto 1fr;gap:7px}.health{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.source{padding:7px;background:var(--p);border:1px solid var(--ln);border-radius:8px}.source b{display:block;font-size:10px}.source span{font-size:9px;color:var(--mu)}.source.ok{border-color:#1e5b3c}.source.bad{border-color:#67333a}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.sum{padding:8px;background:linear-gradient(#0c1922,#09131b);border:1px solid var(--ln);border-radius:8px}.sum small{color:var(--mu);font-size:8px;letter-spacing:.08em}.sum strong{display:block;font-size:18px}
+.feedpanel{min-height:0;display:grid;grid-template-rows:auto 1fr}.head{display:flex;padding:9px;border-bottom:1px solid var(--ln);font-size:10px;font-weight:800;letter-spacing:.08em}.head span{margin-left:auto;color:var(--cy)}
+#feed{overflow:auto;padding:4px}.item{padding:9px;border-bottom:1px solid #122733;border-radius:6px}.item:hover{background:#0d1c26}.r{display:flex;align-items:flex-start;gap:7px}.badge{font-size:8px;font-weight:900;padding:2px 4px;border:1px solid;border-radius:3px;flex:none}.alert{color:#ff9da6;border-color:#77333a}.quake{color:#ffd078;border-color:#715729}.event{color:#75e6ff;border-color:#286170}.fed{color:#9cbcff;border-color:#3c5783}.ttl{font-size:12px;font-weight:650}.meta{font-size:9px;color:var(--mu);margin-top:3px}.item a{color:inherit;text-decoration:none}
+.progress{height:2px;background:#0b1821}.progress>div{height:100%;width:0;background:var(--cy);transition:width .2s}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#0a1620;color:var(--tx)}.leaflet-popup-content a{color:var(--cy)}
+@media(max-width:850px){body{overflow:auto}.app{height:auto;min-height:100dvh}main{grid-template-columns:1fr;grid-template-rows:54dvh auto}.right{min-height:65dvh}.feedpanel{height:58dvh}header{position:sticky;top:0;z-index:1000}.classification{display:none}.stats{top:7px}.stat{min-width:62px;padding:4px 6px}.stat b{font-size:12px}}
+@media(max-width:460px){#clock{display:none}.bar{padding:5px}.health{grid-template-columns:repeat(2,1fr)}main{padding:5px;gap:5px}.search{min-width:145px}.summary{gap:4px}.sum{padding:6px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="logo">FED<i>//OSINT FUSION</i></div><div class="classification">OPEN SOURCE • UNCLASSIFIED</div><div class="grow"></div><div id="clock"></div><div class="live"><i class="dot" id="dot"></i><span id="mode">READY</span></div></header>
+<div>
+ <div class="bar">
+  <button id="run">▶ RUN OSINT UPDATE</button>
+  <button onclick="window.open('https://globalconflictawareness.com/','_blank')">GCA ↗</button>
+  <button onclick="window.open('https://www.lumorabuild.com/warmaplive/','_blank')">WarMap ↗</button>
+  <button onclick="window.open('https://sitdeck.com/','_blank')">SitDeck ↗</button>
+  <button class="chip on" data-f="all">ALL</button><button class="chip" data-f="alert">NWS</button><button class="chip" data-f="quake">USGS</button><button class="chip" data-f="event">NASA</button><button class="chip" data-f="fed">FEDERAL</button>
+  <input class="search" id="q" placeholder="Search current picture…"><span class="tiny" id="stamp">No collection yet</span>
+ </div><div class="progress"><div id="prog"></div></div>
+</div>
+<main>
+<section class="panel mapbox"><div id="map"></div><div class="stats"><div class="stat"><b id="a">—</b><span>NWS ALERTS</span></div><div class="stat"><b id="e">—</b><span>EARTHQUAKES</span></div><div class="stat"><b id="n">—</b><span>NASA EVENTS</span></div></div></section>
+<aside class="right">
+ <div class="health">
+  <div class="source" id="hNWS"><b>NWS</b><span>waiting</span></div><div class="source" id="hUSGS"><b>USGS</b><span>waiting</span></div>
+  <div class="source" id="hNASA"><b>NASA EONET</b><span>waiting</span></div><div class="source" id="hFED"><b>FEDERAL</b><span>waiting</span></div>
+ </div>
+ <div class="summary"><div class="sum"><small>RECORDS</small><strong id="records">0</strong></div><div class="sum"><small>NEW</small><strong id="newc">0</strong></div><div class="sum"><small>SOURCES UP</small><strong id="up">0/4</strong></div></div>
+ <section class="panel feedpanel"><div class="head">INTELLIGENCE PICTURE <span id="fc">0 ITEMS</span></div><div id="feed"><div class="item"><div class="ttl">Press RUN OSINT UPDATE.</div><div class="meta">Fusion build: direct official feeds populate the dashboard; GCA, WarMap Live and SitDeck are established as upstream OSINT references while we connect only endpoints that permit browser retrieval. The dashboard never claims a blocked page was successfully ingested.</div></div></div></section>
+</aside>
+</main></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const S={items:[],filter:'all',previous:new Set(JSON.parse(localStorage.getItem('fedosint_ids')||'[]'))};
+const map=L.map('map',{worldCopyJump:true}).setView([38,-97],4);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);
+const marks=L.layerGroup().addTo(map);
+const $=x=>document.getElementById(x), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ago=t=>{let m=Math.max(0,Math.floor((Date.now()-new Date(t).getTime())/60000));return m<1?'now':m<60?m+'m ago':m<1440?Math.floor(m/60)+'h ago':Math.floor(m/1440)+'d ago'};
+function health(id,ok,msg){let x=$(id);x.className='source '+(ok?'ok':'bad');x.querySelector('span').textContent=msg}
+async function json(url){const tries=[url,'https://api.allorigins.win/raw?url='+encodeURIComponent(url)];let last;for(const u of tries){let c=new AbortController(),t=setTimeout(()=>c.abort(),15000);try{let r=await fetch(u,{signal:c.signal,headers:{Accept:'application/json'}});if(!r.ok)throw Error('HTTP '+r.status);return await r.json()}catch(e){last=e}finally{clearTimeout(t)}}throw last||Error('Fetch failed')}
+function put(x){x.key=x.key||[x.type,x.title,x.time].join('|');S.items.push(x)}
+async function nws(){
+ let j=await json('https://api.weather.gov/alerts/active?status=actual');
+ for(let f of j.features||[]){let p=f.properties||{},g=f.geometry,lat,lon;if(g?.type==='Point'){lon=g.coordinates[0];lat=g.coordinates[1]}
+ put({type:'alert',source:'National Weather Service',title:(p.event||'Weather Alert')+(p.areaDesc?' — '+p.areaDesc:''),time:p.sent||p.effective,url:p['@id']||f.id,lat,lon,key:'NWS|'+(f.id||p.id),detail:p.severity})}
+ $('a').textContent=(j.features||[]).length;return (j.features||[]).length
+}
+async function usgs(){
+ let j=await json('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');
+ for(let f of j.features||[]){let p=f.properties||{},c=f.geometry?.coordinates||[];
+ put({type:'quake',source:'U.S. Geological Survey',title:`M${p.mag??'?'} — ${p.place||'Earthquake'}`,time:p.time,url:p.url,lat:c[1],lon:c[0],mag:p.mag,key:'USGS|'+f.id})}
+ $('e').textContent=(j.features||[]).length;return (j.features||[]).length
+}
+async function nasa(){
+ let j=await json('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=100');
+ for(let x of j.events||[]){let g=x.geometry?.[x.geometry.length-1],c=g?.coordinates;
+ put({type:'event',source:'NASA EONET',title:x.title,time:g?.date||x.geometry?.[0]?.date,url:x.link,lat:Array.isArray(c)&&typeof c[0]==='number'?c[1]:null,lon:Array.isArray(c)&&typeof c[0]==='number'?c[0]:null,key:'NASA|'+x.id})}
+ $('n').textContent=(j.events||[]).length;return (j.events||[]).length
+}
+async function federal(){
+ /* Federal Register's public API is browser-accessible and provides current official federal documents. */
+ let j=await json('https://www.federalregister.gov/api/v1/documents.json?per_page=40&order=newest');
+ for(let d of j.results||[]) put({type:'fed',source:(d.agencies?.[0]?.name||'Federal Register'),title:d.title,time:d.publication_date,url:d.html_url,key:'FR|'+d.document_number,detail:d.type});
+ return (j.results||[]).length
+}
+function render(){
+ let q=$('q').value.trim().toLowerCase(),arr=S.items.filter(x=>(S.filter==='all'||x.type===S.filter)&&(!q||(x.title+' '+x.source+' '+(x.detail||'')).toLowerCase().includes(q))).sort((x,y)=>new Date(y.time||0)-new Date(x.time||0));
+ $('fc').textContent=arr.length+' ITEMS';$('records').textContent=S.items.length;$('newc').textContent=S.items.filter(x=>!S.previous.has(x.key)).length;
+ $('feed').innerHTML=arr.length?arr.slice(0,300).map(x=>`<div class="item"><div class="r"><span class="badge ${x.type}">${x.type==='alert'?'NWS':x.type==='quake'?'USGS':x.type==='event'?'NASA':'FED'}</span><div><div class="ttl">${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a>`:esc(x.title)}</div><div class="meta">${esc(x.source)} • ${esc(ago(x.time))}${x.detail?' • '+esc(x.detail):''}${!S.previous.has(x.key)?' • NEW':''}</div></div></div></div>`).join(''):'<div class="item"><div class="ttl">No matching records.</div></div>';
+ marks.clearLayers();arr.forEach(x=>{if(Number.isFinite(x.lat)&&Number.isFinite(x.lon)){let col=x.type==='alert'?'#ff626f':x.type==='quake'?'#ffc857':'#59ddff',m=L.circleMarker([x.lat,x.lon],{radius:x.type==='quake'?Math.min(12,4+(x.mag||0)*1.2):6,color:col,weight:1.5,fillOpacity:.45}).addTo(marks);m.bindPopup(`<b>${esc(x.title)}</b><br><small>${esc(x.source)} • ${esc(ago(x.time))}</small>${x.url?`<br><a href="${esc(x.url)}" target="_blank">Open official source ↗</a>`:''}`)}})
+}
+async function run(){
+ $('run').disabled=true;$('run').textContent='COLLECTING…';$('mode').textContent='COLLECTING';$('prog').style.width='5%';S.items=[];let ok=0,done=0;
+ const jobs=[['hNWS','NWS',nws],['hUSGS','USGS',usgs],['hNASA','NASA',nasa],['hFED','FED',federal]];
+ await Promise.all(jobs.map(async ([id,name,fn])=>{try{let n=await fn();ok++;health(id,true,n+' records')}catch(e){health(id,false,'BLOCKED'); console.error(name,e)}finally{done++;$('prog').style.width=(5+done*23)+'%'}}));
+ $('up').textContent=ok+'/4';render();let ids=[...new Set(S.items.map(x=>x.key))].slice(0,1000);localStorage.setItem('fedosint_ids',JSON.stringify(ids));localStorage.setItem('fedosint_last',new Date().toISOString());
+ $('stamp').textContent='Collected '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});$('prog').style.width='100%';$('mode').textContent=ok===4?'LIVE':'DEGRADED';$('dot').style.background=ok===4?'var(--gr)':ok?'var(--am)':'var(--rd)';$('run').disabled=false;$('run').textContent='▶ RUN OSINT UPDATE';setTimeout(()=>$('prog').style.width='0',900)
+}
+document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');S.filter=b.dataset.f;render()});
+$('q').addEventListener('input',render);$('run').onclick=()=>{try{run()}catch(e){$('mode').textContent='ERROR';$('stamp').textContent='Error: '+e.message;$('run').disabled=false;$('run').textContent='▶ RUN OSINT UPDATE'}};
+setInterval(()=>{$('clock').textContent=new Date().toLocaleString([],{weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'})},1000);
+let last=localStorage.getItem('fedosint_last');if(last)$('stamp').textContent='Last run '+new Date(last).toLocaleString(); setTimeout(run,700);
+</script>
+</body></html>
